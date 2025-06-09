@@ -1,4 +1,6 @@
-# ------------------------ Análsis de retornados Honduras ---------------------#
+# ----------------------------- Retornados Honduras ---------------------------#
+#                                Limpieza de data                              #
+
 install.packages("tidyr")
 install.packages("psych") 
 install.packages("skimr")
@@ -46,7 +48,7 @@ retornados <- retornados %>%
     # Variables como factor
     Sexo = ifelse(Sexo=="M", 1, 0),
     Sexo = factor(Sexo, levels = c(0, 1),           
-                       labels = c("F", "M")),
+                       labels = c("Femenino", "Masculino")),
     EstadoCivi = case_when(EstadoCivi == "Soltero/a"     ~ 1,
                                EstadoCivi == "Unión Libre"   ~ 2,
                                EstadoCivi == "Casado/a"      ~ 3,
@@ -55,8 +57,8 @@ retornados <- retornados %>%
                                EstadoCivi == "Viudo/a"       ~ 6,
                                TRUE                          ~ NA_real_),
     EstadoCivi = factor(EstadoCivi,levels = 1:6, 
-                        labels = c("Soltero/a", "Unión Libre", "Casado/a",
-                                    "Separado/a", "Divorciado/a", "Viudo/a")),
+                        labels = c("Soltero", "Unión Libre", "Casado",
+                                    "Separado", "Divorciado", "Viudo")),
     MadreViva = case_when(MadreViva == "Viva"      ~ 1,
                           MadreViva == "Fallecida" ~ 2,
                           MadreViva == "No sabe"   ~ 3,
@@ -110,9 +112,17 @@ table(retornados$ParentescoTutor)
 ### Motivo de migración / salida / retorno
 table(retornados_raw$SolicitoProteccion)
 table(retornados_raw$PaisDirigia)
+class(retornados_raw$PaisDirigia)
 table(retornados_raw$OtroPaisDirigia)
 table(retornados_raw$VecesIrregularIngPaisRetorno)
 table(retornados_raw$VecesLegalIngPaisRetornado)
+table(retornados_raw$`Violencia Intrafamiliar`)
+table(retornados_raw$`Violencia Domestica`)
+table(retornados_raw$`Violencia en el Hogar`)
+table(retornados_raw$Salud)
+table(retornados_raw$Estudios)
+table(retornados_raw$`Razones Económicas`)
+table(retornados_raw$`Razones Familiares (Reunificación Familiar)`)
 
 retornados <- retornados %>% 
   mutate(
@@ -123,9 +133,18 @@ retornados <- retornados %>%
                                    TRUE                                                      ~ NA_real_),
     SolicitoProteccion = factor(SolicitoProteccion, levels = 1:3, 
                                 labels = c("No","Si y abandonó", "Si y la denegaron")),
+    `Violencia Domestica` = ifelse(`Violencia Domestica`==1 | `Violencia en el Hogar` == 1 
+                                   | `Violencia Intrafamiliar`==1, 1,0),
+    PaisDirigia = case_when(PaisDirigia == "USA"       ~ 1,
+                            PaisDirigia == "México"    ~ 2,
+                            PaisDirigia == "Guatemala" ~ 3,
+                            PaisDirigia ==  "Otro"     ~ 4,
+                            TRUE                       ~ NA_real_),
+    PaisDirigia = factor(PaisDirigia, levels = 1:4, labels = c("USA", "México",
+                                                               "Guatemala", "Otro")),
     # Variables numéricas
     VecesIrregularIngPaisRetorno = as.numeric(VecesIrregularIngPaisRetorno),
-    VecesLegalIngPaisRetornado = as.numeric(VecesLegalIngPaisRetornado),
+    VecesLegalIngPaisRetornado = as.numeric(VecesLegalIngPaisRetornado)
   ) 
 
 # Chequeo
@@ -152,6 +171,7 @@ table(retornados$ProblemaSalud)
 table(retornados_raw$`Nivel Educativo`)
 class(retornados_raw$`Nivel Educativo`)
 unique(retornados_raw$PaisEstudio) # fix me: mapear con paises
+table(retornados_raw$Ingles)
 table(retornados_raw$ConocimientoInformatica)
 table(retornados_raw$OtroConocimiento)
 
@@ -174,7 +194,17 @@ retornados <- retornados %>%
                                 labels=c("Ninguno", "Pre Escolar (1-3)","Básica (Elementary)", 
                                           "Primaria (1-6)", "Básica III ciclo (Junior High)",
                                           "Secundaria (1-6)", "Media (High School)", "Técnico (1-3)",
-                                          "Universitaria"))
+                                          "Universitaria")),
+    
+    ConocimientoInformatica = ifelse(ConocimientoInformatica==2, 0, 1),
+    ingles_informatica = case_when(Ingles==1 & ConocimientoInformatica==1 ~ 1,
+                                   Ingles==0 & ConocimientoInformatica==1 ~ 2,
+                                   Ingles==1 & ConocimientoInformatica==0 ~ 3,
+                                   Ingles==0 & ConocimientoInformatica==0 ~ 4,
+                                   TRUE                                   ~ NA_real_),
+    ingles_informatica = factor(ingles_informatica, levels = 1:4, 
+                                labels = c("Inglés y informatica", "Informatica",
+                                           "Inglés", "Ninguno"))
     
   )
 
@@ -266,8 +296,18 @@ retornados <- retornados %>%
     AguaPotable = ifelse(AguaPotable == "Si", 1, 0),
     TratamientoAgua = ifelse(TratamientoAgua == "Si", 1, 0),
     ServicioSanitario = ifelse(ServicioSanitario== "Si", 1, 0),
-    Cocinar_LR = ifelse(CocinarLenaResiduos== "Si", 1, 0)
-  )
+    Cocinar_LR = ifelse(CocinarLenaResiduos== "Si", 1, 0),
+    vivienda_precaria = ifelse(PisoTierra==1 | Paredes_BDM==1 | Techo_PD==1
+                               | AguaPotable==0 | ServicioSanitario==0 |
+                                 Cocinar_LR==1, 1, 0),
+    AguaPotable_no = ifelse(AguaPotable==0, 1, 0),
+    ServicioSanitario_no = ifelse(ServicioSanitario==0, 1, 0),
+    num_carencias = rowSums(across(c(PisoTierra, Paredes_BDM, Techo_PD, 
+                                     AguaPotable_no, ServicioSanitario_no,
+                                     Cocinar_LR), 
+                                   ~ ., .names = NULL), na.rm = TRUE) 
+  ) %>% 
+  select(-CocinarLenaResiduos, -ParedesBaharequeDesechosMadera, -TechoPajaDesecho)
 
 # Chequeo
 table(retornados_raw$ViviendaPropia)
@@ -316,10 +356,41 @@ retornados <- retornados %>%
 
 # Ids unicos
 length(unique(retornados$id_personas))
+
+# nº de retornos
 retornados <- retornados %>% 
-  arrange(id_personas, fecha_arribo)
+  group_by(id_personas) %>%
+  arrange(id_personas, fecha_arribo) %>%
+  mutate(n_retorno = row_number(),
+         total_retorno = n()) %>%
+  ungroup() %>% 
+  select(id_personas, numero_personas_nucleo, numero_miembro, fecha_arribo, n_retorno, total_retorno, everything())
+    
+# NAs
+na <- retornados %>%
+        summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
+        pivot_longer(cols = everything(), names_to = "Variable", values_to = "Porcentaje_NA") %>%
+        arrange(desc(Porcentaje_NA))
+
+# Valores extremos
+Hmisc::describe(retornados$ultimo_grado_aprobado)
+p99_ultimo_grado <- quantile(retornados$ultimo_grado_aprobado, 
+                             0.99, na.rm = TRUE)  # 12
+
+retornados <- retornados %>% 
+  mutate(ultimo_grado_r = ifelse(ultimo_grado_aprobado>p99_ultimo_grado, 
+                                 NA, ultimo_grado_aprobado))
+
+Hmisc::describe(retornados$edad_al_retornar)
+p9999_edad <- quantile(retornados$edad_al_retornar, 0.9999, na.rm = TRUE)  # 54 (muy bajo)
+
+retornados <- retornados %>% 
+  mutate(edad_al_retornar_r = ifelse(edad_al_retornar>p9999_edad, 
+                                 NA, edad_al_retornar))
+
 
 # ---> 2.3) Guardo la data limpia
 write_csv(retornados, paste(data_path, "/retornados_clean.csv", sep = ""))
+
 
   
