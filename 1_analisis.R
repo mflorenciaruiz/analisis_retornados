@@ -237,6 +237,53 @@ p7 <- ggplot(data_plot, aes(x = pais_dirigia, y = pct)) +
 
 ggsave("output/p7.png", plot = p7, width = 8, height = 6, dpi = 300)
 
+# Asistencias durante el proceso de migracion
+data_plot <- retornados1 %>%
+  filter(!is.na(atenciones)) %>%        # eliminar NAs
+  count(atenciones, name = "n_personas") %>%
+  mutate(pct = n_personas / sum(n_personas) * 100) %>% 
+  mutate(atenciones = fct_reorder(atenciones, pct))
+
+data_plot <- data_plot %>%
+  mutate(atenciones = case_when(
+    atenciones == "Explicación de sus derechos y procedimiento de retorno" ~ 
+    "Explicación de sus derechos \ny procedimiento de retorno",
+    atenciones == "Le permitieron comunicarse con su familia" ~ 
+      "Le permitieron comunicarse \ncon su familia",
+    atenciones == "Ninguna Atencion por Consulado Hondureño" ~
+      "Ninguna Atencion por Consulado \nHondureño",
+    atenciones == "Información sobre su situación migratoria" ~
+      "Información sobre su situación \nigratoria",
+    atenciones == "Contacto (telefónico, personal, skype)" ~
+      "Contacto (telefónico, personal, \nskype)",
+    atenciones == "Atención de salud cuando lo requirío" ~
+      "Atención de salud cuando lo \nrequirío",
+    atenciones == "Un lugar adecuando para descanso" ~
+      "Un lugar adecuando para \ndescanso",
+    TRUE ~ atenciones),
+    atenciones = fct_reorder(atenciones, pct))
+
+p8 <- ggplot(data_plot, aes(x = atenciones, y = pct)) +
+  geom_col(fill = "steelblue", width = 0.8) +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            hjust = -0.1, size = 3) +
+  labs(
+    x = "Tipo de atención",
+    y = "Porcentaje de personas (%)",
+  ) +
+  theme_classic() +                                  
+  theme(
+    plot.title = element_text(hjust = 0.5, size=11),
+    panel.grid = element_blank(),
+    axis.title = element_text(size=11),
+    axis.text  = element_text(color="black")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.1))) +
+  coord_flip()
+
+ggsave("output/p8.png", plot = p8, width = 8, height = 6, dpi = 300)
+
+
 # ---> Educación
 
 # Nivel educativo
@@ -287,7 +334,7 @@ data_plot <- retornados1 %>%
   mutate(pct = n_personas / sum(n_personas) * 100) %>% 
   mutate(ingles_informatica = fct_reorder(ingles_informatica, pct))
 
-p10 <- ggplot(data_plot, aes(x = ingles_informatica, y = pct)) +
+p11 <- ggplot(data_plot, aes(x = ingles_informatica, y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.2, size = 3) +
@@ -304,12 +351,37 @@ p10 <- ggplot(data_plot, aes(x = ingles_informatica, y = pct)) +
     axis.text  = element_text(color="black")
   )
 
-ggsave("output/p10.png", plot = p10, width = 8, height = 6, dpi = 300)
+ggsave("output/p11.png", plot = p11, width = 8, height = 6, dpi = 300)
 
 
 # ---> Trabajo
 
 # Experiencia laboral
+data_plot <- retornados1 %>%
+  filter(!is.na(categoria_exp)) %>%        # eliminar NAs
+  count(categoria_exp, name = "n_personas") %>%
+  mutate(pct = n_personas / sum(n_personas) * 100) %>%
+  mutate(categoria_exp = fct_reorder(categoria_exp, pct))  
+
+p12 <- ggplot(data_plot, aes(x = categoria_exp, y = pct)) +
+  geom_col(fill = "steelblue", width = 0.8) +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            hjust = -0.1, size = 3) +
+  labs(
+    x = "Sector de experiencia laboral",
+    y = "Porcentaje de personas",
+  ) +
+  theme_classic() +                                  
+  theme(
+    plot.title = element_text(hjust = 0.5, size=11),
+    panel.grid      = element_blank(),
+    axis.title = element_text(size=11),
+    axis.text       = element_text(color="black")
+  )+
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.1))) +
+  coord_flip()
+p12
+ggsave("output/p12.png", plot = p12, width = 8, height = 6, dpi = 300)
 
 
 # ---> Vivienda
@@ -320,7 +392,7 @@ data_plot <- retornados1 %>%
   count(vivienda_propia, name = "n_personas") %>%
   mutate(pct = n_personas / sum(n_personas) * 100) 
 
-p12 <- ggplot(data_plot, aes(x = vivienda_propia, y = pct)) +
+p13 <- ggplot(data_plot, aes(x = vivienda_propia, y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.3, size = 3) +
@@ -337,7 +409,7 @@ p12 <- ggplot(data_plot, aes(x = vivienda_propia, y = pct)) +
     axis.title = element_text(size=11),
     axis.text  = element_text(color="black")
   )
-ggsave("output/p12.png", plot = p12, width = 8, height = 6, dpi = 300)
+ggsave("output/p13.png", plot = p13, width = 8, height = 6, dpi = 300)
 
 # Carencias en la vivienda
   # Distribucipon de carencias
@@ -346,16 +418,16 @@ data_plot <- retornados1 %>%
   count(num_carencias, name = "n_personas") %>%
   mutate(pct = n_personas / sum(n_personas) * 100) 
 
-p13 <- ggplot(data_plot, aes(x = num_carencias, y = pct)) +
+p14 <- ggplot(data_plot, aes(x = num_carencias, y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.3, size = 3) +
   labs(
-    x = "Número de carencias",
+    x = "Cantidad de carencias",
     y = "Porcentaje de personas",
     title = "Carencias en la vivienda\n(por personas con un solo retorno)"
   ) +
-  scale_x_continuous(breaks = seq(0, 6, by = 1))
+  scale_x_continuous(breaks = seq(0, 6, by = 1)) +
   theme_classic() +                                  
   theme(
     plot.title = element_text(hjust = 0.5, size=11),
@@ -363,8 +435,9 @@ p13 <- ggplot(data_plot, aes(x = num_carencias, y = pct)) +
     axis.title = element_text(size=11),
     axis.text  = element_text(color="black")
   )
-p13
 
+ggsave("output/p14.png", plot = p14, width = 8, height = 6, dpi = 300)
+  
 
   # Moda de carencias
 data_long <- retornados1 %>%
@@ -378,8 +451,8 @@ data_plot <- data_long %>%
   group_by(carencia) %>%
   summarise(pct = mean(presente, na.rm = TRUE) * 100)
 
-ggplot(data_plot, aes(x = reorder(carencia, -pct), y = pct)) +
-  geom_col(fill = "steelblue") +
+p15 <- ggplot(data_plot, aes(x = reorder(carencia, -pct), y = pct)) +
+  geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")), hjust = -0.1, size = 3) +
   labs(
     title = "Porcentaje de personas con cada carencia de vivienda\n(por personas con un solo retorno)",
@@ -401,6 +474,7 @@ ggplot(data_plot, aes(x = reorder(carencia, -pct), y = pct)) +
     axis.text = element_text(color= "black")
   )
 
+ggsave("output/p15.png", plot = p15, width = 8, height = 6, dpi = 300)
 
 # Vivienda precaria (al menos una carencia)
 data_plot <- retornados1 %>%
@@ -409,7 +483,7 @@ data_plot <- retornados1 %>%
   mutate(pct = n_personas / sum(n_personas) * 100) 
 
 ggplot(data_plot, aes(x = vivienda_precaria, y = pct)) +
-  geom_col(fill = "steelblue", width = 0.7) +
+  geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.2, size = 3) +
   scale_x_continuous(breaks = c(0, 1), labels = c("No", "Sí"))+
@@ -431,8 +505,8 @@ data_plot <- retornados1 %>%
   count(problema_salud, name = "n_personas") %>%
   mutate(pct = n_personas / sum(n_personas) * 100)
 
-ggplot(data_plot, aes(x = problema_salud, y = pct)) +
-  geom_col(fill = "steelblue", width = 0.7) +
+p16 <- ggplot(data_plot, aes(x = problema_salud, y = pct)) +
+  geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.2, size = 3) +
   labs(
@@ -444,6 +518,7 @@ ggplot(data_plot, aes(x = problema_salud, y = pct)) +
   theme(
     plot.title = element_text(hjust = 0.5, size=11)           
   )
+ggsave("output/p16.png", plot = p15, width = 8, height = 6, dpi = 300)
 
 # Discapacidades (el 99% no tiene)
 

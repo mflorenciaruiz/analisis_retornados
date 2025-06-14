@@ -5,13 +5,20 @@ install.packages("tidyr")
 install.packages("psych") 
 install.packages("skimr")
 install.packages("janitor")
-
+install.packages(c("tidytext", "stopwords"))
+install.packages("stringi") 
+install.packages("stringdist")
+library(stringdist)
+library(stringi)
 library(dplyr)
 library(tidyr)
 library(readr)
 library(readxl)
 library(stringr)
 library(psych)
+library(tidytext)
+library(stringr)
+library(stopwords)
 
 rm(list = ls())
 
@@ -123,7 +130,18 @@ table(retornados_raw$Salud)
 table(retornados_raw$Estudios)
 table(retornados_raw$`Razones Económicas`)
 table(retornados_raw$`Razones Familiares (Reunificación Familiar)`)
-
+table(retornados_raw$`Explicación de sus derechos y procedimiento de retorno`)
+table(retornados_raw$Alimentación)
+table(retornados_raw$`Le permitieron comunicarse con su familia`)
+table(retornados_raw$`Un lugar adecuando para descanso`)
+table(retornados_raw$`Un buen trato al dirigirse a usted`)
+table(retornados_raw$`Atención de salud cuando lo requirío`)
+table(retornados_raw$`Ninguna Atencion de Migracion`)      
+table(retornados_raw$`Contacto (telefónico, personal, skype)`)
+table(retornados_raw$`Información sobre su deportación o situación migratoria`)
+table(retornados_raw$`Asesoría general`)
+table(retornados_raw$`Ninguna Atencion por Consulado Hondureño`)
+        
 retornados <- retornados %>% 
   mutate(
     # Variables factor
@@ -145,7 +163,38 @@ retornados <- retornados %>%
     # Variables numéricas
     VecesIrregularIngPaisRetorno = as.numeric(VecesIrregularIngPaisRetorno),
     VecesLegalIngPaisRetornado = as.numeric(VecesLegalIngPaisRetornado)
-  ) 
+  ) %>% 
+  rename(
+    explicacion_derechos = `Explicación de sus derechos y procedimiento de retorno`,
+    comunicacion_flia = `Le permitieron comunicarse con su familia`,
+    lugar_descanso = `Un lugar adecuando para descanso`,
+    buen_trato = `Un buen trato al dirigirse a usted`,
+    atencion_salud = `Atención de salud cuando lo requirío`,
+    no_atencion_migracion = `Ninguna Atencion de Migracion`,
+    contacto = `Contacto (telefónico, personal, skype)`,
+    informacion = `Información sobre su deportación o situación migratoria`,
+    asesoria_gral = `Asesoría general`,
+    no_atencion_consulado = `Ninguna Atencion por Consulado Hondureño`
+  ) %>% 
+  mutate(
+    atenciones = case_when(explicacion_derechos  == 1 ~ 1,
+                           comunicacion_flia     == 1 ~ 2,
+                           lugar_descanso        == 1 ~ 3,
+                           buen_trato            == 1 ~ 4,
+                           atencion_salud        == 1 ~ 5,
+                           contacto              == 1 ~ 6,
+                           informacion           == 1 ~ 7,
+                           asesoria_gral         == 1 ~ 8,
+                           no_atencion_migracion == 1 ~ 9,
+                           no_atencion_consulado == 1 ~ 10,
+                           TRUE  ~ NA),
+    atenciones = factor(atenciones, levels = 1:10,
+                        labels = c("Explicación de sus derechos \ny procedimiento de retorno",
+                        "Le permitieron comunicarse con su familia", "Un lugar adecuando para descanso",
+                        "Un buen trato al dirigirse a usted", "Atención de salud cuando lo requirío",
+                        "Contacto (telefónico, personal, skype)", "Información sobre su situación migratoria",
+                        "Asesoría general", "Ninguna atencion de migracion", "Ninguna Atencion por Consulado Hondureño"))
+  )
 
 # Chequeo
 table(retornados_raw$SolicitoProteccion)
@@ -269,6 +318,81 @@ retornados <- retornados %>%
   ) %>% 
   select(-DispuestoFortalecerHabilidadesEmpresariales,-DeseaAcompanamientoTecnicoFinanciero,
          -DispuestoVinculacionMercadosNacionalesSENPRENDE)
+
+# CATEGORIAS DE EXPERIENCIA LABORAL
+retornados <- retornados %>%
+  mutate(
+    exp_clean = ExperienciaLaboral %>%
+      str_to_lower() %>%
+      stri_trans_general("Latin-ASCII") %>%
+      str_replace_all("[[:punct:]]", " ") %>%
+      str_squish()
+  ) %>% 
+  mutate(
+    categoria_exp = case_when(
+      # 1. Agricultura
+      str_detect(exp_clean, "recolector|gricul|jonalero|pastor|campesino|granja|jornal|agr|agi|agric|campo|cultiv|sembrar") ~ 1,
+      
+      # 2. Construcción
+      str_detect(exp_clean, "labanil|contr|co0ntrucion|obrero|contruccion|contrucion|vidrio|soldador|soldadu|carpintero|carpinteria|albañil|constru|alban|pintura|pint|soldador|estructura|techo") ~ 2,
+      
+      # 3. Transporte
+      str_detect(exp_clean, "transporte|motorist|conductor|bus|camion|taxi|chofer") ~ 3,
+      
+      # 4. Comercio
+      str_detect(exp_clean, "vendante|emplaste|cliente|cajer[ao]|comerc|venta|vendedor|tienda|comerciante|abarroteria") ~ 4,
+      
+      # 5. Trabajo Doméstico
+      str_detect(exp_clean, "am de casa|casa|niñera|ninera|ama|cuidad|ama de casa|limpieza|domestica|casas") ~ 5,
+      
+      # 6. Industria
+      str_detect(exp_clean, "empaque|empacador|maquila|fabrica|operari|costura|maquinista") ~ 6,
+      
+      # 7. Servicios de comida
+      str_detect(exp_clean, "chef|pastel|cocina|panader|meser|comida|cociner|tortilla|restaurante|bar|cantina") ~ 7,
+      
+      # 8. Educación
+      str_detect(exp_clean, "maestr[ao]|profesor|docente|educador|jardin") ~ 8,
+      
+      # 9. Servicios técnicos (electricista, mecánico)
+      str_detect(exp_clean, "elevtricista|plomer|maca|mecanic|electric|tecnic|reparacion|electri") ~ 9,
+      
+      # 10. Seguridad
+      str_detect(exp_clean, "guardia|seguridad|vigilante") ~ 10,
+      
+      # 11. Administracion
+      str_detect(exp_clean, "atencion|public[ao]|administrativ|oficina") ~ 11,
+      
+      # 12. Arte, diseño, estetica
+      str_detect(exp_clean, "estsilista|teatro|manicurista|unas|uñas|arte|artist|plastic[ao]|diseño|disenio|disenador|estilista") ~ 12,
+      
+      # 13. Estudiante
+      str_detect(exp_clean, "estudiante|estud|univer") ~ 13,
+
+      # 14. Profesionales
+      str_detect(exp_clean, "pericto|abogado|administracion|contador|locutor|enfermer|bachill|enfermer[ao]|licencia|derecho|militar|licda|perito|arqueologo") ~ 14,
+      
+      # 15. Sin experiencia / Otro
+      str_detect(exp_clean, "no|sin|sin experiencia|nada|ninguna|nula|ningun|solo en el campo|n o|n/o|no tiene") ~ 15,
+      
+      # Las que no matchean nada y son NA
+      is.na(exp_clean) ~ NA_integer_,
+      
+      TRUE ~ 16
+    ),
+    
+    categoria_exp = factor(categoria_exp, levels = 1:16,
+                           labels = c("Agricultura", "Construcción", "Transporte", "Comercio",
+                                      "Trabajo Doméstico", "Industria", "Servicios de comida",
+                                      "Educación", "Servicios de reparación", "Seguridad",
+                                      "Administración", "Arte, diseño, estética", "Estudiante", 
+                                      "Profesional", "Sin experiencia", "Otro"))
+  )
+
+table(retornados$categoria_exp)
+retornados %>% 
+  filter(categoria_exp=="Otro / No clasificado", !is.na(exp_clean)) %>% 
+  select(exp_clean) %>%  View()
 
 # Chequeo
 table(retornados_raw$SalarioNacional)
