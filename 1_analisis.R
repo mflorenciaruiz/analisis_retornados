@@ -2,6 +2,8 @@
 install.packages("ggplot2")
 install.packages("forcats")
 install.packages("Hmisc")
+install.packages("sf")
+install.packages("ggspatial")
 library(forcats)
 library(dplyr)
 library(tidyr)
@@ -10,6 +12,8 @@ library(readxl)
 library(stringr)
 library(psych)
 library(ggplot2)
+library(sf)
+library(ggspatial)
 
 options(scipen = 999)
 
@@ -283,6 +287,84 @@ p8 <- ggplot(data_plot, aes(x = atenciones, y = pct)) +
 
 ggsave("output/p8.png", plot = p8, width = 8, height = 6, dpi = 300)
 
+# A dónde se dirigen
+table(retornados1$departemento_dirige)
+
+dptos <- read_sf("data/cartografia/departamentos_hn.shp") %>% 
+ mutate(departemento_dirige = str_to_upper(NOMBRE),
+        departemento_dirige = str_squish(departemento_dirige)) 
+
+data_plot <- retornados1 %>%
+  filter(!is.na(departemento_dirige)) %>%        # eliminar NAs
+  count(departemento_dirige, name = "n_personas") %>%
+  mutate(pct = n_personas / sum(n_personas) * 100) %>%
+  mutate(departemento_dirige = fct_reorder(departemento_dirige, pct),
+         departemento_dirige = str_squish(departemento_dirige))  
+
+dptos_plot <- data_plot %>% 
+  full_join(dptos, by = "departemento_dirige") %>% 
+  filter(!is.na(departemento_dirige))
+
+st_geometry(dptos_plot)
+dptos_plot <- st_as_sf(dptos_plot)
+
+p9 <- ggplot(data = dptos_plot) +
+  geom_sf(aes(fill = pct), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "#deebf7", high = "steelblue", name = "Porcentaje") +
+  theme_minimal() +
+  labs(title = "Distribución de pct por zona") +
+  annotation_scale(
+    location = "bl",
+    width_hint = 0.2,     #  ancho
+    height = unit(0.2, "cm"),  # altura
+    style = "bar",
+    text_cex = 0.6
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size =11),
+    legend.position = "right"
+  )
+
+ggsave("output/p9.png", plot = p9, width = 8, height = 6, dpi = 300)
+
+# Departaentos de origen
+table(retornados1$departemento_nacimiento)
+
+dptos <- dptos %>% 
+  rename(departemento_nacimiento = departemento_dirige) 
+
+data_plot <- retornados1 %>%
+  filter(!is.na(departemento_nacimiento)) %>%        # eliminar NAs
+  count(departemento_nacimiento, name = "n_personas") %>%
+  mutate(pct = n_personas / sum(n_personas) * 100) %>%
+  mutate(departemento_nacimiento = fct_reorder(departemento_nacimiento, pct),
+         departemento_nacimiento = str_squish(departemento_nacimiento))  
+
+dptos_plot <- data_plot %>% 
+  full_join(dptos, by = "departemento_nacimiento") %>% 
+  filter(!is.na(departemento_nacimiento))
+
+dptos_plot <- st_as_sf(dptos_plot)
+st_geometry(dptos_plot)
+
+ggplot(data = dptos_plot) +
+  geom_sf(aes(fill = pct), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "#deebf7", high = "steelblue", name = "Porcentaje") +
+  theme_minimal() +
+  labs(title = "Distribución de pct por zona") +
+  annotation_scale(
+    location = "bl",
+    width_hint = 0.2,     #  ancho
+    height = unit(0.2, "cm"),  # altura
+    style = "bar",
+    text_cex = 0.6
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size =11),
+    legend.position = "right"
+  ) # muy parecido al que se dirigen
 
 # ---> Educación
 
