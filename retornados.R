@@ -1,13 +1,15 @@
 # ----------------------------- Retornados Honduras ---------------------------#
 #                                Limpieza de data                              #
 
-install.packages("tidyr")
-install.packages("psych") 
-install.packages("skimr")
-install.packages("janitor")
-install.packages(c("tidytext", "stopwords"))
-install.packages("stringi") 
-install.packages("stringdist")
+#install.packages("tidyr")
+#install.packages("psych") 
+#install.packages("skimr")
+#install.packages("janitor")
+#install.packages(c("tidytext", "stopwords"))
+#install.packages("stringi") 
+#install.packages("stringdist")
+
+library(lubridate)
 library(stringdist)
 library(stringi)
 library(dplyr)
@@ -55,7 +57,7 @@ retornados <- retornados %>%
     # Variables como factor
     Sexo = ifelse(Sexo=="M", 1, 0),
     Sexo = factor(Sexo, levels = c(0, 1),           
-                       labels = c("Femenino", "Masculino")),
+                       labels = c("Mujeres", "Hombres")),
     EstadoCivi = case_when(EstadoCivi == "Soltero/a"     ~ 1,
                                EstadoCivi == "Unión Libre"   ~ 2,
                                EstadoCivi == "Casado/a"      ~ 3,
@@ -226,6 +228,7 @@ table(retornados_raw$OtroConocimiento)
 
 retornados <- retornados %>% 
   mutate(
+    `Nivel Educativo Raw` = `Nivel Educativo`,
     `Nivel Educativo` = case_when(`Nivel Educativo`== "No realizó estudios"            ~ 1,
                                   `Nivel Educativo`== "Ninguno"                        ~ 1,
                                   `Nivel Educativo`== "Pre Escolar (1-3)"              ~ 2,
@@ -245,6 +248,22 @@ retornados <- retornados %>%
                                           "Secundaria (1-6)", "Media (High School)", "Técnico (1-3)",
                                           "Universitaria")),
     
+    # Creo el nivel educativo agrupado
+    nivel_ed_ag = case_when(`Nivel Educativo Raw`== "No realizó estudios"            ~ 1,
+                            `Nivel Educativo Raw`== "Ninguno"                        ~ 1,
+                            `Nivel Educativo Raw`== "Pre Escolar (1-3)"              ~ 2,
+                            `Nivel Educativo Raw`== "Básica (Elementary)"            ~ 2,
+                            `Nivel Educativo Raw`== "Primaria (1-6)"                 ~ 2,
+                            `Nivel Educativo Raw`== "Básica III ciclo (Junior High)" ~ 3,
+                            `Nivel Educativo Raw`== "Secundaria (1-6)"               ~ 3,
+                            `Nivel Educativo Raw`== "Media (High School)"            ~ 3,
+                            `Nivel Educativo Raw`== "Técnico (1-3)"                  ~ 4,
+                            `Nivel Educativo Raw`== "Universitaria"                  ~ 4,
+                            `Nivel Educativo Raw`== "Universitario (1-8)"            ~ 4,
+                            TRUE                                                  ~ NA_real_),
+    nivel_ed_ag = factor(nivel_ed_ag, levels = 1:4, labels = 
+                           c("Ninguno", "Pre-escolar o Primaria", "Secundaria", "Superior")),
+    
     ConocimientoInformatica = ifelse(ConocimientoInformatica==2, 0, 1),
     ingles_informatica = case_when(Ingles==1 & ConocimientoInformatica==1 ~ 1,
                                    Ingles==0 & ConocimientoInformatica==1 ~ 2,
@@ -263,7 +282,7 @@ table(retornados$`Nivel Educativo`)
 
 ### Trabajo / Datos económicos
 unique(retornados_raw$DetalleOtroConocimiento)
-unique(retornados_raw$ExperienciaLaboral) # fix me: agrupar en categorías
+unique(retornados_raw$ExperienciaLaboral) 
 unique(retornados_raw$QueOficioGustariaAprender) # fix me: agrupar en categorías
 unique(retornados_raw$DeseaEmprender)
 class(retornados_raw$DeseaEmprender)
@@ -298,6 +317,18 @@ retornados <- retornados %>%
     vincular_mercados = as.numeric(DispuestoVinculacionMercadosNacionalesSENPRENDE),
     vincular_servicios = as.numeric(DispuestoVinculacionServiciosFinancierosSENPRENDE),
     consen_SETRASS = as.numeric(ConsentimientoSETRASS),
+    
+    emprendedurismo = case_when(DeseaEmprender     == 1 ~ 1,
+                                fortalecer_h_emp   == 1 ~ 2,
+                                legalizar_emp      == 1 ~ 3,
+                                vincular_mercados  == 1 ~ 4,
+                                vincular_servicios == 1 ~ 5,
+                                TRUE                    ~ NA_real_),
+    emprendedurismo = factor(emprendedurismo, levels = 1:5, 
+                             labels = c("Desea emprender", "Dispuesto a fortalecer \nhabilidades empresariales",
+                                        "Dispuesto a legalizar \nemprendimiento", "Dispuesto a vincular con \nmercados nacionales",
+                                        "Dispuesto a vincular con \nservicios financieros")),
+    
     SalarioNacional = case_when(SalarioNacional == "Menos del salario minimo"         ~ 1,
                                 SalarioNacional == "Salario minimo"                   ~ 2,
                                 SalarioNacional == "De dos a tres salarios minimos"   ~ 3,
@@ -394,6 +425,8 @@ retornados %>%
   filter(categoria_exp=="Otro / No clasificado", !is.na(exp_clean)) %>% 
   select(exp_clean) %>%  View()
 
+sum(is.na(table(retornados$categoria_exp)))
+
 # Chequeo
 table(retornados_raw$SalarioNacional)
 table(retornados$SalarioNacional)
@@ -426,10 +459,16 @@ retornados <- retornados %>%
                                  Cocinar_LR==1, 1, 0),
     AguaPotable_no = ifelse(AguaPotable==0, 1, 0),
     ServicioSanitario_no = ifelse(ServicioSanitario==0, 1, 0),
-    num_carencias = rowSums(across(c(PisoTierra, Paredes_BDM, Techo_PD, 
-                                     AguaPotable_no, ServicioSanitario_no,
-                                     Cocinar_LR), 
-                                   ~ ., .names = NULL), na.rm = TRUE) 
+    
+    # Cantidad de carencias (si todas son NA sigue con NA)
+    num_carencias = if_else(
+      if_all(c(PisoTierra, Paredes_BDM, Techo_PD, 
+               AguaPotable_no, ServicioSanitario_no, Cocinar_LR),
+             is.na),
+      NA_integer_,  # si todos son NA → poner NA
+      rowSums(across(c(PisoTierra, Paredes_BDM, Techo_PD, 
+                       AguaPotable_no, ServicioSanitario_no, Cocinar_LR)), 
+              na.rm = TRUE))
   ) %>% 
   select(-CocinarLenaResiduos, -ParedesBaharequeDesechosMadera, -TechoPajaDesecho)
 
@@ -470,26 +509,56 @@ unique(retornados_raw$FronteraSalida)
 unique(retornados_raw$CAMR)
 unique(retornados_raw$OtraFronteraSalida)
 
+retornados <- retornados %>% 
+  mutate(FronteraSalida = as.factor(FronteraSalida))
+levels(retornados$FronteraSalida)
+
+# Fechas de salida y arribo
+class(retornados_raw$FechaArribo)
+min(retornados_raw$FechaArribo)
+max(retornados_raw$FechaArribo)
+class(retornados_raw$MesUltimaSalidaPais)
+unique(retornados_raw$MesUltimaSalidaPais)
+class(retornados_raw$AnioUltimaSalidaPais)
+unique(retornados_raw$AnioUltimaSalidaPais)
+
+retornados <- retornados %>% 
+  mutate(
+    # Corrijo los negativos
+    AnioUltimaSalidaPais = ifelse(AnioUltimaSalidaPais<0, NA_real_, AnioUltimaSalidaPais),
+    MesUltimaSalidaPais = ifelse(MesUltimaSalidaPais<0, NA_real_, MesUltimaSalidaPais),
+    
+    # Variables en formato fecha
+    FechaArribo = as.Date(FechaArribo),
+    ano_arribo = year(FechaArribo),
+    ano_mes_arribo = make_date(year = year(FechaArribo), month = month(FechaArribo), day = 1),
+    ano_mes_u_salida = make_date(year = as.integer(AnioUltimaSalidaPais),
+                                    month = as.integer(MesUltimaSalidaPais),
+                                    day = 1),
+    
+    # Diferencia
+    meses_fuera = interval(ano_mes_u_salida, ano_mes_arribo) %/% months(1)
+  )
+
+table(retornados$meses_fuera)
+round(prop.table(table(retornados$ano_arribo)) * 100, 1)
+
+View(retornados[retornados$meses_fuera<0, c("IdPersonas", "ano_mes_arribo", "ano_mes_u_salida", "FechaArribo")])
+# Remplazo los negativos por NA
+retornados <- retornados %>% 
+  mutate(
+    meses_fuera = ifelse(meses_fuera<0, NA_Date_, meses_fuera)
+  )
+
 # Elimino edades, años y meses de salida negativos  
 retornados <- retornados %>% 
-  filter(MesUltimaSalidaPais>0, AnioUltimaSalidaPais>0, EdadAlRetornar>0, EdadActual>0)
+  mutate(EdadAlRetornar = ifelse(EdadAlRetornar<0, NA_real_, EdadAlRetornar),
+         EdadActual = ifelse(EdadActual<0, NA_real_, EdadActual))
 
 # Nombres limpios
 retornados <- retornados %>% 
   janitor :: clean_names()
 
-# Ids unicos
-length(unique(retornados$id_personas))
-
-# nº de retornos
-retornados <- retornados %>% 
-  group_by(id_personas) %>%
-  arrange(id_personas, fecha_arribo) %>%
-  mutate(n_retorno = row_number(),
-         total_retorno = n()) %>%
-  ungroup() %>% 
-  select(id_personas, numero_personas_nucleo, numero_miembro, fecha_arribo, n_retorno, total_retorno, everything())
-    
 # NAs
 na <- retornados %>%
         summarise(across(everything(), ~ mean(is.na(.)) * 100)) %>%
@@ -506,12 +575,72 @@ retornados <- retornados %>%
                                  NA, ultimo_grado_aprobado))
 
 Hmisc::describe(retornados$edad_al_retornar)
-p9999_edad <- quantile(retornados$edad_al_retornar, 0.9999, na.rm = TRUE)  # 54 (muy bajo)
+p99_edad <- quantile(retornados$edad_al_retornar, 0.99, na.rm = TRUE)  # 54 (muy bajo)
 
 retornados <- retornados %>% 
-  mutate(edad_al_retornar_r = ifelse(edad_al_retornar>p9999_edad, 
+  mutate(edad_al_retornar_r = ifelse(edad_al_retornar>p99_edad, 
                                  NA, edad_al_retornar))
 
+Hmisc::describe(retornados$meses_fuera)
+p95_meses <- quantile(retornados$meses_fuera, 0.95, na.rm = TRUE) 
+p95_meses
+p98_meses <- quantile(retornados$meses_fuera, 0.98, na.rm = TRUE) 
+p98_meses
+p99_meses <- quantile(retornados$meses_fuera, 0.99, na.rm = TRUE) 
+p99_meses
+
+retornados <- retornados %>% 
+  mutate(meses_fuera_r = ifelse(meses_fuera>p95_meses, 
+                                     NA, meses_fuera))
+
+# Ids unicos
+length(unique(retornados$id_personas))
+
+# nº de retornos
+retornados <- retornados %>% 
+  group_by(id_personas) %>%
+  arrange(id_personas, fecha_arribo) %>%
+  mutate(n_retorno = row_number(),
+         total_retorno = n()) %>%
+  ungroup() %>% 
+  select(id_personas, numero_personas_nucleo, numero_miembro, fecha_arribo, n_retorno, total_retorno, everything())
+
+# Outliers en nª de retornos
+retornados <- retornados %>%
+  arrange(id_personas, n_retorno) %>% 
+  select(id_personas, n_retorno, total_retorno, everything())
+  
+Hmisc::describe(retornados$total_retorno)
+p99_retornos <- quantile(retornados$total_retorno, 0.99, na.rm = TRUE)
+
+retornados <- retornados %>% 
+  mutate(total_retorno_r = ifelse(total_retorno>p99_retornos, 
+                                  NA, total_retorno))
+
+# Tipo de retornados en funcion de la cantidad de veces que retornaron
+View(retornados[retornados$id_personas==166, ])
+
+retornados <- retornados %>% 
+  group_by(id_personas) %>%
+  mutate(
+    tipo_retorno = case_when(
+      total_retorno == 1 ~ 1,
+      total_retorno > 1 & n_retorno == 1 ~ 2,
+      total_retorno > 1 & n_retorno == total_retorno ~ 3,
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(
+    tipo_retorno = factor(tipo_retorno,
+                          levels = c(1, 2, 3),
+                          labels = c("Único retorno", "Primer retorno", "Último retorno")
+    )
+  )
+
+View(retornados[retornados$id_personas==166, c("id_personas", "total_retorno", "n_retorno", "tipo_retorno")])
+any(is.na(retornados$tipo_retorno))
+View(retornados[is.na(retornados$tipo_retorno), c("id_personas", "total_retorno", "n_retorno", "tipo_retorno")])
 
 # ---> 2.3) Guardo la data limpia
 write_csv(retornados, paste(data_path, "/retornados_clean.csv", sep = ""))
