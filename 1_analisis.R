@@ -78,6 +78,8 @@ data_plot <- retornados %>%
 
 p2<- ggplot(data_plot, aes(x = ano_arribo, y = cant_anual)) +
   geom_col(fill = "steelblue", color = "white", width = 0.8) +
+  geom_text(aes(label = scales::comma(cant_anual)), 
+            vjust = -0.5, size = 3.5, color = "black") +
   labs(
     x = "Año",
     y = "Cantidad de retornos"
@@ -91,10 +93,6 @@ p2<- ggplot(data_plot, aes(x = ano_arribo, y = cant_anual)) +
     axis.line.x = element_line(color = "black"),
     axis.title  = element_text(color = "black", size = 13),
     axis.text   = element_text(color = "black", size = 13),
-    panel.grid.major.y = element_line(color = "grey80", linetype = "dotted"),
-    panel.grid.minor.y = element_blank(), 
-    panel.grid.major.x = element_blank(), 
-    panel.grid.minor.x = element_blank()  
   )
 p2
 ggsave("output/evolucion.png", plot = p2, width = 8, height = 6, dpi = 300)
@@ -771,7 +769,34 @@ data_plot <- retornados %>%
 ggsave("output/experiencia_evol.png", plot = p22, width = 12, height = 6, dpi = 300)
 
 
-# ---> Vivienda
+# ---> Bienestar
+
+# Embarazo
+data_plot <- retornados1 %>%
+  filter(!is.na(embarazada)) %>%        # eliminar NAs
+  count(embarazada, name = "n_personas") %>%
+  mutate(pct = n_personas / sum(n_personas) * 100) 
+
+p16 <- ggplot(data_plot, aes(x = embarazada, y = pct)) +
+  geom_col(fill = "steelblue", width = 0.7) +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            vjust = -0.5, size = 4, color= "black") +
+  labs(
+    x = "",
+    y = "Porcentaje de mujeres",
+    title = "¿Está embarazada?"
+  ) +
+  scale_x_continuous(breaks = c(0, 1), labels = c("No", "Sí"))+
+  theme_classic(base_family = "source") +                                  
+  theme(
+    plot.title = element_text(size = 14, color = "black", hjust = 0.5),
+    axis.line.y = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.title = element_text(size = 14, color = "black"),
+    axis.text = element_text(size = 14, color = "black")
+  )
+p16
+ggsave("output/vivenda_propia.png", plot = p16, width = 8, height = 6, dpi = 300)
 
 # Vivienda propia
 data_plot <- retornados1 %>%
@@ -779,7 +804,7 @@ data_plot <- retornados1 %>%
   count(vivienda_propia, name = "n_personas") %>%
   mutate(pct = n_personas / sum(n_personas) * 100) 
 
-p16 <- ggplot(data_plot, aes(x = vivienda_propia, y = pct)) +
+p17 <- ggplot(data_plot, aes(x = vivienda_propia, y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.5, size = 3.5, color= "black") +
@@ -795,8 +820,8 @@ p16 <- ggplot(data_plot, aes(x = vivienda_propia, y = pct)) +
     axis.title = element_text(size = 13, color = "black"),
     axis.text = element_text(size = 13, color = "black")
   )
-p16
-ggsave("output/vivenda_propia.png", plot = p16, width = 8, height = 6, dpi = 300)
+p17
+ggsave("output/vivenda_propia.png", plot = p17, width = 8, height = 6, dpi = 300)
 
 
 # Carencias en la vivienda
@@ -814,7 +839,7 @@ data_plot %>%
   filter(num_carencias >= 2) %>%
   summarise(pct_total = sum(pct))
 
-p17 <- ggplot(data_plot, aes(x = num_carencias, y = pct)) +
+p18 <- ggplot(data_plot, aes(x = num_carencias, y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
             vjust = -0.5, size = 4.5, color="black") +
@@ -832,7 +857,7 @@ p17 <- ggplot(data_plot, aes(x = num_carencias, y = pct)) +
     axis.title = element_text(size = 15, color = "black"),
     axis.text = element_text(size = 15, color = "black")
   )
-p17
+p18
 
   # Moda de carencias
 data_long <- retornados1 %>%
@@ -849,7 +874,7 @@ data_plot <- data_long %>%
 table(data_long$presente, useNA = "ifany")
 table(retornados1$num_carencias, useNA = "ifany")
 
-p18 <- ggplot(data_plot, aes(x = reorder(carencia, -pct), y = pct)) +
+p19 <- ggplot(data_plot, aes(x = reorder(carencia, -pct), y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")), hjust = -0.1, 
             size = 4.5, color = "black") +
@@ -876,10 +901,10 @@ p18 <- ggplot(data_plot, aes(x = reorder(carencia, -pct), y = pct)) +
     axis.title = element_text(size = 15, color = "black"),
     axis.text = element_text(size = 15, color = "black")
   )
-p18
-p17_18 <- p17 + p18 
-p17_18
-ggsave("output/vivenda_carencias.png", plot = p17_18, width = 15.5, height = 6, dpi = 300)
+p19
+p18_19 <- p18 + p19 
+p18_19
+ggsave("output/vivenda_carencias.png", plot = p18_19, width = 15.5, height = 6, dpi = 300)
 
 # Vivienda precaria (al menos una carencia)
 data_plot <- retornados1 %>%
@@ -902,34 +927,35 @@ ggplot(data_plot, aes(x = vivienda_precaria, y = pct)) +
     plot.title = element_text(hjust = 0.5, size=11)           
   )
 
-# ---> Salud
-
 # Problemas de salud
 data_plot <- retornados1 %>%
   filter(!is.na(problema_salud)) %>%        # eliminar NAs
   count(problema_salud, name = "n_personas") %>%
   mutate(pct = n_personas / sum(n_personas) * 100)
 
-p19 <- ggplot(data_plot, aes(x = problema_salud, y = pct)) +
+p20 <- ggplot(data_plot, aes(x = problema_salud, y = pct)) +
   geom_col(fill = "steelblue", width = 0.8) +
   geom_text(aes(label = paste0(round(pct, 1), "%")),
-            vjust = -0.2, size = 3.5, color = "black") +
+            vjust = -0.5, size = 4, color = "black") +
   labs(
     x = " ",
-    y = "Porcentaje de personas"
+    y = "Porcentaje de personas",
+    title = "¿Tiene un problema de salud?"
   ) +
   theme_classic(base_family = "source") +                                  
   theme(
-    plot.title = element_text(size = 13, color = "black", hjust = 0.5),
+    plot.title = element_text(size = 14, color = "black", hjust = 0.5),
     axis.line.y = element_blank(),
     axis.line.x = element_line(color = "black"),
-    axis.title = element_text(size = 13, color = "black"),
-    axis.text = element_text(size = 13, color = "black")
+    axis.title = element_text(size = 14, color = "black"),
+    axis.text = element_text(size = 14, color = "black")
   )
+p20
 
-p19
+ggsave("output/salud.png", plot = p20, width = 8, height = 6, dpi = 300)
 
-ggsave("output/salud.png", plot = p19, width = 8, height = 6, dpi = 300)
+p20_16 <- p20 + p16
+ggsave("output/indiadores_salud.png", plot = p20_16, width = 12, height = 6, dpi = 300)
 
 # Discapacidades (el 99% no tiene)
 
@@ -969,7 +995,7 @@ ggplot(retornados1, aes(x = anios_fuera)) +
     panel.grid.minor.x = element_blank()
   )
 
-p20 <- ggplot(retornados1, aes(x = meses_fuera_r)) +
+p21 <- ggplot(retornados1, aes(x = meses_fuera_r)) +
   geom_histogram(aes(y = ..count.. / sum(..count..) * 100),
                  binwidth = 6,  # cada bin cubre 6 meses
                  boundary = 0,
@@ -993,8 +1019,8 @@ p20 <- ggplot(retornados1, aes(x = meses_fuera_r)) +
     panel.grid.major.x = element_blank(), 
     panel.grid.minor.x = element_blank()
   )
-p20
-ggsave("output/meses_fuera.png", plot = p20, width = 8, height = 6, dpi = 300)
+p21
+ggsave("output/meses_fuera.png", plot = p21, width = 8, height = 6, dpi = 300)
 
 # Evolución en el tiempo
 promedios_tiempo <- retornados %>%
@@ -1064,7 +1090,7 @@ data_long <- promedios_tiempo %>%
     values_to = "valor"
   )
 
-p21 <- ggplot(data_long, aes(x = ano_arribo, y = valor)) +
+p22 <- ggplot(data_long, aes(x = ano_arribo, y = valor)) +
   geom_line(color = "steelblue", size = 1) +
   facet_wrap(~ indicador, ncol = 1, labeller = as_labeller(c(
     menos1ano_afuera_prom = "1 año o menos fuera",
@@ -1088,7 +1114,7 @@ p21 <- ggplot(data_long, aes(x = ano_arribo, y = valor)) +
     panel.grid.major.x = element_blank(), 
     panel.grid.minor.x = element_blank()
   )
-ggsave("output/meses_fuera_evol.png", plot = p21, width = 10, height = 6, dpi = 300)
+ggsave("output/meses_fuera_evol.png", plot = p22, width = 10, height = 6, dpi = 300)
 
-# pais donde estudio, embarazo
+# pais donde estudio
 
